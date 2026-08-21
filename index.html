@@ -438,16 +438,7 @@ let currentView = 'home';
 let selectedArea = '';
 const PREFERRED_AREA_KEY = 'preferred-area-v1';
 
-const DEFAULT_SEED = [{
-  id: 'seed1',
-  category: '麵食類',
-  name: '炒米粉',
-  qty: '2鍋悶燒鍋',
-  vegType: '',
-  area: '斗六區',
-  provider: '高太太',
-  note: ''
-}];
+const DEFAULT_SEED = [];
 
 function uid(){
   return 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
