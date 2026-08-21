@@ -1022,23 +1022,27 @@ function renderCategoryDetail(key){
   }
 
   const showVegField = !NO_VEG_CATS.includes(cat.key);
+  // Give every render's fields a fresh, unique "name" attribute (and no autocomplete),
+  // so iOS Safari can't mistake a freshly-rebuilt input for the same field it saw
+  // before and silently restore its old value into it.
+  const fid = uid();
   const form = document.createElement('div');
   form.className = 'form show';
   form.innerHTML = `
     <div>
       <label>品名 *</label>
-      <input type="text" data-field="name" placeholder="例如：${NAME_PLACEHOLDERS[cat.key] || ''}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      <input type="text" data-field="name" name="name-${fid}" placeholder="例如：${NAME_PLACEHOLDERS[cat.key] || ''}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
       <div class="err" data-err="name">請輸入品名</div>
     </div>
     <div class="row2">
       <div>
         <label>份量</label>
-        <input type="text" data-field="qty" placeholder="例如：${QTY_PLACEHOLDERS[cat.key] || ''}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+        <input type="text" data-field="qty" name="qty-${fid}" placeholder="例如：${QTY_PLACEHOLDERS[cat.key] || ''}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
       </div>
       ${showVegField ? `
       <div>
         <label>素食類別</label>
-        <select data-field="vegType">
+        <select data-field="vegType" name="vegType-${fid}">
           <option value="">請選擇</option>
           ${VEG_OPTIONS.map(v=>`<option value="${v}">${v}</option>`).join('')}
         </select>
@@ -1047,17 +1051,24 @@ function renderCategoryDetail(key){
     </div>
     <div>
       <label>提供前賢</label>
-      <input type="text" data-field="provider" placeholder="姓名" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      <input type="text" data-field="provider" name="provider-${fid}" placeholder="姓名" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
     </div>
     <div>
       <label>備註</label>
-      <input type="text" data-field="note" placeholder="選填" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+      <input type="text" data-field="note" name="note-${fid}" placeholder="選填" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
     </div>
     <div class="form-actions">
       <button type="button" class="btn btn-ghost" data-action="cancel">清除欄位</button>
       <button type="button" class="btn btn-primary" data-action="submit">送出登記</button>
     </div>
   `;
+
+  // Defensive: force every field blank right after insertion. This guards against
+  // the browser (notably iOS Safari) re-applying a previously-typed value into a
+  // newly-created input that happens to sit in the same on-screen position.
+  form.querySelectorAll('input').forEach(i=>{ i.value=''; });
+  const initialVegField = form.querySelector('[data-field="vegType"]');
+  if(initialVegField) initialVegField.value='';
 
   form.querySelector('[data-action="cancel"]').addEventListener('click', ()=>{
     form.querySelectorAll('input').forEach(i=>i.value='');
