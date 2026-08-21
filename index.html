@@ -334,7 +334,7 @@
   <div class="head">
     <p class="eyebrow">戶外活動 · 餐點認領表</p>
     <h1>中區青少班<br>11月戶外活動餐點系統</h1>
-    <p class="sub">點選各分類新增你要提供的餐點，全部前賢共用同一份清單</p>
+    <p class="sub">點選各分類新增你要提供的餐點，資料只會保存在你自己的裝置</p>
     <div class="stats">
       <div class="stat"><div class="n" id="statTotal">0</div><div class="l">已認領項目</div></div>
       <div class="stat"><div class="n" id="statCats">0</div><div class="l">已有項目分類</div></div>
@@ -350,7 +350,8 @@
       </select>
     </div>
 
-    <div class="icon-grid" id="iconGrid"></div>
+    <div class="empty-row" id="areaSelectHint" style="display:none;">請先選擇上方的區單位，才會顯示餐點分類</div>
+    <div class="icon-grid" id="iconGrid" style="display:none;"></div>
   </div>
 
   <div id="categoryView" style="display:none;">
@@ -358,13 +359,9 @@
     <div id="catDetail"></div>
   </div>
 
-  <div id="offlineBanner" style="display:none; margin-top:14px; padding:10px 14px; background:var(--mustard-light); color:#7A5217; border-radius:10px; font-size:12px; font-weight:500;">
-    目前無法連上共用雲端儲存，資料暫時只存在這個頁面，重新整理或分享給別人將看不到剛剛的變更。
-  </div>
-
-  <p class="footer-note">此表為所有參與者共用，新增或刪除項目大家都看得到，請確認資訊正確再送出。</p>
+  <p class="footer-note">此表為個人專用，只會保存你自己填寫的項目，請確認資訊正確再送出。</p>
   <div class="reset-link" id="resetLinkWrap">
-    <button id="resetAllBtn" type="button">清空全部資料</button>
+    <button id="resetAllBtn" type="button">清空我的資料</button>
   </div>
 </div>
 
@@ -457,34 +454,34 @@ function uid(){
 }
 
 async function safeStorageGet(key, shared, retries){
-  retries = retries === undefined ? 1 : retries;
+  retries = retries === undefined ? 2 : retries;
   for(let i=0; i<=retries; i++){
     try{
       return await window.storage.get(key, shared);
     }catch(e){
       if(i===retries){
-        console.error('storage get failed', key, e);
+        console.warn('storage get unavailable (using local fallback):', key, e && e.message ? e.message : e);
         return null;
       }
-      await new Promise(r=>setTimeout(r, 300));
+      await new Promise(r=>setTimeout(r, 400 * (i+1)));
     }
   }
   return null;
 }
 
 async function safeStorageSet(key, value, shared, retries){
-  retries = retries === undefined ? 1 : retries;
+  retries = retries === undefined ? 2 : retries;
   for(let i=0; i<=retries; i++){
     try{
       const result = await window.storage.set(key, value, shared);
       if(result) return true;
     }catch(e){
       if(i===retries){
-        console.error('storage set failed', key, e);
+        console.warn('storage set unavailable (change kept locally only):', key, e && e.message ? e.message : e);
         return false;
       }
     }
-    await new Promise(r=>setTimeout(r, 300));
+    await new Promise(r=>setTimeout(r, 400 * (i+1)));
   }
   return false;
 }
@@ -496,15 +493,15 @@ async function loadEntries(){
     return;
   }
 
-  const seeded = await safeStorageGet(SEED_FLAG_KEY, true);
+  const seeded = await safeStorageGet(SEED_FLAG_KEY, false);
   if(!seeded){
-    const savedInit = await safeStorageSet(STORAGE_KEY, JSON.stringify(DEFAULT_SEED), true);
+    const savedInit = await safeStorageSet(STORAGE_KEY, JSON.stringify(DEFAULT_SEED), false);
     if(savedInit){
-      await safeStorageSet(SEED_FLAG_KEY, 'true', true);
+      await safeStorageSet(SEED_FLAG_KEY, 'true', false);
     }
   }
 
-  const res = await safeStorageGet(STORAGE_KEY, true);
+  const res = await safeStorageGet(STORAGE_KEY, false);
   if(res && res.value){
     try{
       entries = JSON.parse(res.value);
@@ -529,10 +526,10 @@ async function saveEntries(){
     storageOk = false;
     return false;
   }
-  const ok = await safeStorageSet(STORAGE_KEY, JSON.stringify(entries), true);
+  const ok = await safeStorageSet(STORAGE_KEY, JSON.stringify(entries), false);
   if(!ok){
     storageOk = false;
-    showToast('雲端連線異常，此次變更僅保留在本頁面');
+    showToast('儲存失敗，請稍後再試一次');
   }
   return ok;
 }
@@ -640,11 +637,24 @@ function confirmLineReport(){
   }
 }
 
+function updateIconGridVisibility(){
+  const grid = document.getElementById('iconGrid');
+  const hint = document.getElementById('areaSelectHint');
+  if(selectedArea){
+    grid.style.display = '';
+    hint.style.display = 'none';
+  }else{
+    grid.style.display = 'none';
+    hint.style.display = 'block';
+  }
+}
+
 function showHome(){
   currentView = 'home';
   document.getElementById('homeView').style.display = '';
   document.getElementById('categoryView').style.display = 'none';
   renderIconGrid();
+  updateIconGridVisibility();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 
@@ -869,14 +879,14 @@ function attachResetHandler(){
   btn.addEventListener('click', ()=>{
     const wrap = document.getElementById('resetLinkWrap');
     wrap.innerHTML = `
-      <span style="font-size:12px; color:var(--danger); font-weight:700;">確定要清空所有人的資料嗎？</span>
+      <span style="font-size:12px; color:var(--danger); font-weight:700;">確定要清空我的所有資料嗎？</span>
       <button type="button" class="confirm-btn confirm-yes" id="resetYes" style="margin-left:8px;">確定清空</button>
       <button type="button" class="confirm-btn confirm-no" id="resetNo" style="margin-left:6px;">取消</button>
     `;
     document.getElementById('resetYes').addEventListener('click', async ()=>{
       entries = [];
       await saveEntries();
-      showToast('已清空所有資料');
+      showToast('已清空我的資料');
       resetResetLink();
       updateStats();
       if(currentView === 'home'){
@@ -891,7 +901,7 @@ function attachResetHandler(){
 
 function resetResetLink(){
   const wrap = document.getElementById('resetLinkWrap');
-  wrap.innerHTML = `<button id="resetAllBtn" type="button">清空全部資料</button>`;
+  wrap.innerHTML = `<button id="resetAllBtn" type="button">清空我的資料</button>`;
   attachResetHandler();
 }
 
@@ -908,6 +918,7 @@ function setupAreaSelect(){
   sel.value = selectedArea;
   sel.addEventListener('change', async ()=>{
     selectedArea = sel.value;
+    updateIconGridVisibility();
     if(window.storage){
       await safeStorageSet(PREFERRED_AREA_KEY, selectedArea, false);
     }
@@ -920,7 +931,6 @@ document.getElementById('lineModalConfirm').addEventListener('click', confirmLin
 
 (async function init(){
   await loadEntries();
-  document.getElementById('offlineBanner').style.display = storageOk ? 'none' : 'block';
 
   if(window.storage){
     const pref = await safeStorageGet(PREFERRED_AREA_KEY, false);
