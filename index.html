@@ -456,18 +456,6 @@
 
 <div class="toast" id="toast"></div>
 
-<div class="modal-overlay" id="lineReportModal" style="display:none;">
-  <div class="modal-box">
-    <div class="modal-icon">📣</div>
-    <p class="modal-text">按下開啟LINE按鈕後請選擇《周明輝》，會將該區提供的餐點資訊全部傳給他。</p>
-    <p class="modal-thanks">感謝您的用心❤️、付出🙏</p>
-    <div class="modal-actions">
-      <button type="button" class="btn btn-ghost" id="lineModalCancel">取消</button>
-      <button type="button" class="btn btn-primary" id="lineModalConfirm">開啟LINE</button>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="excelShareModal" style="display:none;">
   <div class="modal-box">
     <div class="modal-icon">📊</div>
@@ -679,58 +667,6 @@ function renderIconGrid(){
   `;
   summaryTile.addEventListener('click', openSummaryView);
   grid.appendChild(summaryTile);
-}
-
-function buildLineReportText(){
-  if(!selectedArea){
-    showToast('請先在上方選擇提供餐點的區單位');
-    return null;
-  }
-  const areaEntries = entries.filter(e=>e.area===selectedArea);
-  if(areaEntries.length===0){
-    showToast('目前還沒有「' + selectedArea + '」提供的餐點資料');
-    return null;
-  }
-  const blocks = [];
-  CATEGORIES.forEach(cat=>{
-    const catEntries = areaEntries.filter(e=>e.category===cat.key);
-    if(catEntries.length===0) return;
-    const lines = [];
-    lines.push(cat.key + (CATEGORY_EMOJI[cat.key]||'') + '提供');
-    const showVeg = !NO_VEG_CATS.includes(cat.key);
-    catEntries.forEach(en=>{
-      const parts = [en.name];
-      if(showVeg && en.vegType) parts.push(en.vegType);
-      if(en.qty) parts.push(en.qty);
-      if(en.provider) parts.push(en.provider + '提供');
-      let line = parts.filter(Boolean).join(' ');
-      if(en.note) line += ' · ' + en.note;
-      lines.push(line);
-    });
-    blocks.push(lines.join('\n'));
-  });
-  return selectedArea + '\n' + blocks.join('\n\n');
-}
-
-function openLineReportModal(){
-  const text = buildLineReportText();
-  if(text === null) return;
-  document.getElementById('lineReportModal').style.display = 'flex';
-  document.getElementById('lineReportModal').dataset.reportText = text;
-}
-
-function closeLineReportModal(){
-  document.getElementById('lineReportModal').style.display = 'none';
-}
-
-function confirmLineReport(){
-  const text = document.getElementById('lineReportModal').dataset.reportText || '';
-  const lineUrl = 'https://line.me/R/msg/text/?' + encodeURIComponent(text);
-  closeLineReportModal();
-  const win = window.open(lineUrl, '_blank');
-  if(!win){
-    window.location.href = lineUrl;
-  }
 }
 
 function pad2(n){ return String(n).padStart(2,'0'); }
@@ -948,26 +884,6 @@ function renderLandingView(){
   }
   grid.appendChild(editTile);
 
-  const lineTile = document.createElement('div');
-  lineTile.className = 'landing-tile' + (hasEntries ? '' : ' disabled');
-  let lineSub = '分享至LINE';
-  if(!selectedArea){ lineSub = '請先進入輸入餐點資訊選擇區單位'; }
-  else if(!hasEntries){ lineSub = '此區尚未登記任何餐點'; }
-  lineTile.innerHTML = `
-    <div class="landing-icon-wrap">
-      <svg viewBox="0 0 56 56" width="100%" height="100%">
-        <rect width="56" height="56" rx="28" fill="#06C755"/>
-        <path d="M28 14c-8.3 0-15 5.4-15 12.1 0 6 5.3 11 12.4 11.9.5.1 1.1.3 1.3.8.1.4.1 1 .05 1.4l-.2 1.3c-.06.4-.3 1.5 1.3.8s8.6-5.1 11.7-8.7c2.2-2.4 3.2-4.8 3.2-7.5C42.75 19.4 36.3 14 28 14z" fill="#fff"/>
-      </svg>
-    </div>
-    <div class="landing-label">餐點回報</div>
-    <div class="landing-sub">${lineSub}</div>
-  `;
-  if(hasEntries){
-    lineTile.addEventListener('click', openLineReportModal);
-  }
-  grid.appendChild(lineTile);
-
   const excelTile = document.createElement('div');
   excelTile.className = 'landing-tile' + (hasEntries ? '' : ' disabled');
   let excelSub = '整理成表格並分享';
@@ -985,7 +901,7 @@ function renderLandingView(){
         <line x1="33.3" y1="21" x2="33.3" y2="42" stroke="#1D6F42" stroke-width="2"/>
       </svg>
     </div>
-    <div class="landing-label">匯出 Excel</div>
+    <div class="landing-label">餐點回報</div>
     <div class="landing-sub">${excelSub}</div>
   `;
   if(hasEntries){
@@ -1634,8 +1550,6 @@ document.getElementById('backBtn').addEventListener('click', showHome);
 document.getElementById('homeBackBtn').addEventListener('click', showLanding);
 document.getElementById('editBackBtn').addEventListener('click', showLanding);
 document.getElementById('summaryBackBtn').addEventListener('click', showHome);
-document.getElementById('lineModalCancel').addEventListener('click', closeLineReportModal);
-document.getElementById('lineModalConfirm').addEventListener('click', confirmLineReport);
 document.getElementById('excelModalCancel').addEventListener('click', closeExcelShareModal);
 document.getElementById('excelModalConfirm').addEventListener('click', confirmExcelShare);
 
