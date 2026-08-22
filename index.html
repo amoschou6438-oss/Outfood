@@ -242,6 +242,7 @@
     opacity:.45;
   }
   .landing-tile.disabled .landing-icon-wrap img{filter:grayscale(1);}
+  .landing-tile.disabled .landing-icon-wrap svg{filter:grayscale(1);}
   .landing-tile.disabled:hover{
     transform:none; box-shadow:none; border-color:var(--line);
   }
@@ -948,7 +949,10 @@ function renderLandingView(){
   grid.appendChild(editTile);
 
   const lineTile = document.createElement('div');
-  lineTile.className = 'landing-tile';
+  lineTile.className = 'landing-tile' + (hasEntries ? '' : ' disabled');
+  let lineSub = '分享至LINE';
+  if(!selectedArea){ lineSub = '請先進入輸入餐點資訊選擇區單位'; }
+  else if(!hasEntries){ lineSub = '此區尚未登記任何餐點'; }
   lineTile.innerHTML = `
     <div class="landing-icon-wrap">
       <svg viewBox="0 0 56 56" width="100%" height="100%">
@@ -957,13 +961,18 @@ function renderLandingView(){
       </svg>
     </div>
     <div class="landing-label">餐點回報</div>
-    <div class="landing-sub">分享至LINE</div>
+    <div class="landing-sub">${lineSub}</div>
   `;
-  lineTile.addEventListener('click', openLineReportModal);
+  if(hasEntries){
+    lineTile.addEventListener('click', openLineReportModal);
+  }
   grid.appendChild(lineTile);
 
   const excelTile = document.createElement('div');
-  excelTile.className = 'landing-tile';
+  excelTile.className = 'landing-tile' + (hasEntries ? '' : ' disabled');
+  let excelSub = '整理成表格並分享';
+  if(!selectedArea){ excelSub = '請先進入輸入餐點資訊選擇區單位'; }
+  else if(!hasEntries){ excelSub = '此區尚未登記任何餐點'; }
   excelTile.innerHTML = `
     <div class="landing-icon-wrap excel-icon-wrap">
       <svg viewBox="0 0 56 56" width="100%" height="100%">
@@ -977,9 +986,11 @@ function renderLandingView(){
       </svg>
     </div>
     <div class="landing-label">匯出 Excel</div>
-    <div class="landing-sub">整理成表格並分享</div>
+    <div class="landing-sub">${excelSub}</div>
   `;
-  excelTile.addEventListener('click', openExcelShareModal);
+  if(hasEntries){
+    excelTile.addEventListener('click', openExcelShareModal);
+  }
   grid.appendChild(excelTile);
 }
 
