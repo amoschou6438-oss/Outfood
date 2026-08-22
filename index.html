@@ -13,6 +13,7 @@
 <meta name="theme-color" content="#3B5B3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
   :root{
     --paper:#F2F3E9;
@@ -379,6 +380,10 @@
   /* line icon tile */
   .line-icon-wrap{border-color:#06C755;}
 
+  /* excel icon tile */
+  .excel-icon-wrap{border-color:#1D6F42;}
+  .modal-hint{font-size:12px; color:var(--ink-faint); line-height:1.6; margin:0 0 14px;}
+
   /* modal */
   .modal-overlay{
     position:fixed; inset:0; background:rgba(43,58,44,0.55);
@@ -458,6 +463,20 @@
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" id="lineModalCancel">取消</button>
       <button type="button" class="btn btn-primary" id="lineModalConfirm">開啟LINE</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="excelShareModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-icon">📊</div>
+    <p class="modal-text">將把「<span id="excelModalArea"></span>」目前登記的餐點資料，依類別整理成 Excel 檔案。</p>
+    <p class="modal-text">按下「匯出並分享」後，手機會跳出分享選單，請優先選擇 <b style="color:#06C755;">LINE</b> 傳送給《周明輝》。</p>
+    <p class="modal-hint">若裝置不支援分享功能，會改為直接下載 Excel 檔案，請再自行透過 LINE 傳送附加檔案。</p>
+    <p class="modal-thanks">感謝您的用心❤️、付出🙏</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" id="excelModalCancel">取消</button>
+      <button type="button" class="btn btn-primary" id="excelModalConfirm">匯出並分享</button>
     </div>
   </div>
 </div>
@@ -713,6 +732,158 @@ function confirmLineReport(){
   }
 }
 
+function pad2(n){ return String(n).padStart(2,'0'); }
+
+function getTimestamp(){
+  const d = new Date();
+  return d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + '_' + pad2(d.getHours()) + pad2(d.getMinutes());
+}
+
+function buildAreaWorkbook(area){
+  const areaEntries = entries.filter(e=>e.area===area);
+  if(typeof XLSX === 'undefined') return null;
+
+  const wb = XLSX.utils.book_new();
+
+  // 總表：全部項目，依類別排序
+  const overviewHeader = ['分類','品名','數量','素食別','提供前賢','備註'];
+  const overviewRows = [overviewHeader];
+  CATEGORIES.forEach(cat=>{
+    const catEntries = areaEntries.filter(e=>e.category===cat.key);
+    const showVeg = !NO_VEG_CATS.includes(cat.key);
+    catEntries.forEach(en=>{
+      overviewRows.push([
+        cat.key,
+        en.name || '',
+        en.qty || '',
+        showVeg ? (en.vegType || '') : '',
+        en.provider || '',
+        en.note || ''
+      ]);
+    });
+  });
+  const overviewSheet = XLSX.utils.aoa_to_sheet(overviewRows);
+  overviewSheet['!cols'] = [{wch:10},{wch:18},{wch:12},{wch:10},{wch:12},{wch:20}];
+  XLSX.utils.book_append_sheet(wb, overviewSheet, '總表');
+
+  // 各分類分頁
+  const catHeader = ['品名','數量','素食別','提供前賢','備註'];
+  CATEGORIES.forEach(cat=>{
+    const catEntries = areaEntries.filter(e=>e.category===cat.key);
+    if(catEntries.length===0) return;
+    const showVeg = !NO_VEG_CATS.includes(cat.key);
+    const rows = [catHeader];
+    catEntries.forEach(en=>{
+      rows.push([
+        en.name || '',
+        en.qty || '',
+        showVeg ? (en.vegType || '') : '',
+        en.provider || '',
+        en.note || ''
+      ]);
+    });
+    const sheet = XLSX.utils.aoa_to_sheet(rows);
+    sheet['!cols'] = [{wch:18},{wch:12},{wch:10},{wch:12},{wch:20}];
+    // Excel 工作表名稱不可包含 \ / ? * [ ] 且長度需 <=31
+    const safeName = cat.key.replace(/[\\/?*\[\]]/g,'').slice(0,31);
+    XLSX.utils.book_append_sheet(wb, sheet, safeName);
+  });
+
+  return wb;
+}
+
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1500);
+}
+
+function openExcelShareModal(){
+  if(!selectedArea){
+    showToast('請先在上方選擇提供餐點的區單位');
+    return;
+  }
+  const areaEntries = entries.filter(e=>e.area===selectedArea);
+  if(areaEntries.length===0){
+    showToast('目前還沒有「' + selectedArea + '」提供的餐點資料');
+    return;
+  }
+  document.getElementById('excelModalArea').textContent = selectedArea;
+  document.getElementById('excelShareModal').style.display = 'flex';
+}
+
+function closeExcelShareModal(){
+  document.getElementById('excelShareModal').style.display = 'none';
+}
+
+async function confirmExcelShare(){
+  closeExcelShareModal();
+
+  if(typeof XLSX === 'undefined'){
+    showToast('Excel 元件載入失敗，請檢查網路連線後再試一次');
+    return;
+  }
+
+  const area = selectedArea;
+  const wb = buildAreaWorkbook(area);
+  if(!wb){
+    showToast('匯出失敗，請稍後再試一次');
+    return;
+  }
+
+  const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const filename = area + '_餐點統計_' + getTimestamp() + '.xlsx';
+  const blob = new Blob([wbout], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+  let shared = false;
+  let shareSkipReason = '';
+
+  if(!window.isSecureContext){
+    shareSkipReason = '此頁面不是在安全連線(https)下開啟，瀏覽器不提供分享功能';
+  }else if(!navigator.share){
+    shareSkipReason = '此瀏覽器不支援分享功能';
+  }else{
+    try{
+      const file = new File([blob], filename, { type: blob.type });
+      if(!navigator.canShare){
+        shareSkipReason = '此瀏覽器不支援檔案分享(canShare)';
+      }else if(!navigator.canShare({ files:[file] })){
+        shareSkipReason = '此瀏覽器不支援分享 Excel 檔案格式';
+      }else{
+        await navigator.share({
+          files:[file],
+          title: filename,
+          text: area + ' 餐點統計表'
+        });
+        shared = true;
+        showToast('已開啟分享選單');
+      }
+    }catch(err){
+      if(err && err.name === 'AbortError'){
+        // 使用者自行取消分享，不視為錯誤
+        return;
+      }
+      shareSkipReason = '分享功能呼叫失敗：' + (err && err.message ? err.message : err);
+      console.warn('navigator.share failed:', err);
+    }
+  }
+
+  if(!shared){
+    downloadBlob(blob, filename);
+    if(shareSkipReason){
+      console.warn('分享未啟用原因：', shareSkipReason);
+      showToast('已下載 Excel 檔案（' + shareSkipReason + '）');
+    }else{
+      showToast('已下載 Excel 檔案，請透過 LINE 傳送附加檔案');
+    }
+  }
+}
+
 function updateIconGridVisibility(){
   const grid = document.getElementById('iconGrid');
   const hint = document.getElementById('areaSelectHint');
@@ -790,6 +961,26 @@ function renderLandingView(){
   `;
   lineTile.addEventListener('click', openLineReportModal);
   grid.appendChild(lineTile);
+
+  const excelTile = document.createElement('div');
+  excelTile.className = 'landing-tile';
+  excelTile.innerHTML = `
+    <div class="landing-icon-wrap excel-icon-wrap">
+      <svg viewBox="0 0 56 56" width="100%" height="100%">
+        <rect width="56" height="56" rx="28" fill="#1D6F42"/>
+        <rect x="14" y="14" width="28" height="28" rx="3" fill="#fff"/>
+        <rect x="14" y="14" width="28" height="7" fill="#1D6F42"/>
+        <line x1="14" y1="28" x2="42" y2="28" stroke="#1D6F42" stroke-width="2"/>
+        <line x1="14" y1="35" x2="42" y2="35" stroke="#1D6F42" stroke-width="2"/>
+        <line x1="24.6" y1="21" x2="24.6" y2="42" stroke="#1D6F42" stroke-width="2"/>
+        <line x1="33.3" y1="21" x2="33.3" y2="42" stroke="#1D6F42" stroke-width="2"/>
+      </svg>
+    </div>
+    <div class="landing-label">匯出 Excel</div>
+    <div class="landing-sub">整理成表格並分享</div>
+  `;
+  excelTile.addEventListener('click', openExcelShareModal);
+  grid.appendChild(excelTile);
 }
 
 function showHome(){
@@ -1434,6 +1625,8 @@ document.getElementById('editBackBtn').addEventListener('click', showLanding);
 document.getElementById('summaryBackBtn').addEventListener('click', showHome);
 document.getElementById('lineModalCancel').addEventListener('click', closeLineReportModal);
 document.getElementById('lineModalConfirm').addEventListener('click', confirmLineReport);
+document.getElementById('excelModalCancel').addEventListener('click', closeExcelShareModal);
+document.getElementById('excelModalConfirm').addEventListener('click', confirmExcelShare);
 
 (async function init(){
   await loadEntries();
