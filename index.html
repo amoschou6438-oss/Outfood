@@ -248,6 +248,8 @@
     .icon-grid{grid-template-columns:repeat(4, 1fr);}
   }
   .icon-btn-tile{
+    --cat: var(--mustard);
+    --cat-tint: var(--mustard-light);
     background:var(--card);
     border:1px solid var(--line);
     border-radius:14px;
@@ -262,7 +264,8 @@
   .icon-btn-tile:hover{
     transform:translateY(-2px);
     box-shadow:0 4px 10px rgba(43,58,44,0.12);
-    border-color:var(--mustard);
+    border-color:var(--cat);
+    background:var(--cat-tint);
   }
   .icon-btn-tile:active{transform:translateY(0);}
   .icon-img-wrap{
@@ -402,42 +405,61 @@
   }
 
   .add-btn{
+    --cat: var(--moss);
+    --cat-dark: var(--moss-dark);
+    --cat-tint: var(--paper);
+    --cat-line: var(--mustard);
     margin-top:10px;
     width:100%;
-    padding:9px;
-    border:1px dashed var(--line);
-    background:var(--paper);
-    border-radius:10px;
-    color:var(--moss-dark);
+    padding:10px 12px;
+    border:1.5px dashed var(--cat-line);
+    background:linear-gradient(135deg, var(--cat-tint), #fff);
+    border-radius:12px;
+    color:var(--cat-dark);
     font-weight:700;
     font-size:13px;
     cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
   }
-  .add-btn:hover{background:var(--mustard-light); border-color:var(--mustard);}
+  .add-btn:hover{filter:brightness(0.97); border-color:var(--cat);}
+  .add-btn-avatar{
+    width:26px; height:26px; border-radius:50%; overflow:hidden; flex-shrink:0;
+    border:1.5px solid #fff; box-shadow:0 0 0 1px var(--cat-line);
+  }
+  .add-btn-avatar img{width:100%; height:100%; object-fit:cover; display:block;}
 
-  /* form */
+  /* form — themed per category via --cat/--cat-dark/--cat-tint/--cat-line
+     custom properties, set inline by JS to match each meal category's color */
   .form{
+    --cat: var(--moss);
+    --cat-dark: var(--moss-dark);
+    --cat-tint: var(--paper);
+    --cat-line: var(--line);
     margin-top:10px;
-    background:var(--paper);
-    border-radius:10px;
-    padding:12px;
+    background:linear-gradient(165deg, var(--cat-tint) 0%, var(--card) 75%);
+    border:1px solid var(--cat-line);
+    border-radius:12px;
+    padding:14px 12px;
     display:none;
     flex-direction:column;
     gap:8px;
+    box-shadow:inset 3px 0 0 var(--cat);
   }
   .form.show{display:flex;}
-  .form label{font-size:11px; color:var(--ink-soft); font-weight:700; margin-bottom:2px; display:block;}
+  .form label{font-size:11px; color:var(--cat-dark); font-weight:700; margin-bottom:2px; display:block;}
   .form input, .form select{
     width:100%;
     padding:8px 10px;
-    border:1px solid var(--line);
+    border:1px solid var(--cat-line);
     border-radius:8px;
     font-size:13px;
     background:#fff;
     color:var(--ink);
     font-family:inherit;
   }
-  .form input:focus, .form select:focus{outline:2px solid var(--moss); outline-offset:1px;}
+  .form input:focus, .form select:focus{outline:2px solid var(--cat); outline-offset:1px; border-color:var(--cat);}
   .row2{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
   .err{font-size:12px; color:var(--danger); display:none;}
   .err.show{display:block;}
@@ -445,10 +467,13 @@
   .btn{
     flex:1; padding:9px; border-radius:8px; border:none;
     font-weight:700; font-size:13px; cursor:pointer;
+    transition:filter .12s, transform .1s;
   }
-  .btn-primary{background:var(--moss); color:#fff;}
-  .btn-primary:hover{background:var(--moss-dark);}
-  .btn-ghost{background:transparent; color:var(--ink-soft); border:1px solid var(--line);}
+  .btn-primary{background:linear-gradient(135deg, var(--cat), var(--cat-dark)); color:#fff;}
+  .btn-primary:hover{filter:brightness(0.94);}
+  .btn-primary:active{transform:scale(0.98);}
+  .btn-ghost{background:#fff; color:var(--cat-dark); border:1px solid var(--cat-line);}
+  .btn-ghost:hover{background:var(--cat-tint);}
 
   .footer-note{
     text-align:center; font-size:12px; color:var(--ink-faint); margin-top:22px;
@@ -1661,6 +1686,10 @@ function renderEditEntryForm(row, en, cat, showVeg, number){
   const form = document.createElement('div');
   form.className = 'form show';
   form.style.marginTop = '0';
+  form.style.setProperty('--cat', cat.color);
+  form.style.setProperty('--cat-dark', shadeHex(cat.color, -0.35));
+  form.style.setProperty('--cat-tint', shadeHex(cat.color, 0.82));
+  form.style.setProperty('--cat-line', shadeHex(cat.color, 0.45));
   form.innerHTML = `
     <div>
       <label>品名 *</label>
@@ -1810,12 +1839,22 @@ function renderCategoryDetail(key){
   }
 
   const showVegField = !NO_VEG_CATS.includes(cat.key);
+  // Per-category theme colors, derived from cat.color, used to tint the
+  // add-entry form and its trigger tag so each meal category's input
+  // interface visually matches its own header color.
+  const catTint = shadeHex(cat.color, 0.82);
+  const catDark = shadeHex(cat.color, -0.35);
+  const catLine = shadeHex(cat.color, 0.45);
   // Give every render's fields a fresh, unique "name" attribute (and no autocomplete),
   // so iOS Safari can't mistake a freshly-rebuilt input for the same field it saw
   // before and silently restore its old value into it.
   const fid = uid();
   const form = document.createElement('div');
   form.className = 'form show';
+  form.style.setProperty('--cat', cat.color);
+  form.style.setProperty('--cat-dark', catDark);
+  form.style.setProperty('--cat-tint', catTint);
+  form.style.setProperty('--cat-line', catLine);
   form.innerHTML = `
     <div>
       <label>品名 *</label>
@@ -1923,8 +1962,11 @@ function renderCategoryDetail(key){
   const formLabel = document.createElement('div');
   formLabel.className = 'add-btn';
   formLabel.style.cursor = 'default';
-  formLabel.style.textAlign = 'left';
-  formLabel.textContent = '我要提供' + cat.key;
+  formLabel.style.setProperty('--cat', cat.color);
+  formLabel.style.setProperty('--cat-dark', catDark);
+  formLabel.style.setProperty('--cat-tint', catTint);
+  formLabel.style.setProperty('--cat-line', catLine);
+  formLabel.innerHTML = `<span class="add-btn-avatar"><img src="${ICON_DATA[cat.key]}" alt="${escapeHtml(cat.key)}" /></span><span>我要提供${escapeHtml(cat.key)}</span>`;
 
   body.appendChild(formLabel);
   body.appendChild(form);
@@ -1940,6 +1982,8 @@ function renderCategoryDetail(key){
     const count = entries.filter(e=>e.category===otherCat.key).length;
     const tile = document.createElement('div');
     tile.className = 'icon-btn-tile';
+    tile.style.setProperty('--cat', otherCat.color);
+    tile.style.setProperty('--cat-tint', shadeHex(otherCat.color, 0.85));
     tile.innerHTML = `
       <div class="icon-img-wrap"><img src="${ICON_DATA[otherCat.key]}" alt="${otherCat.key}" /></div>
       <div class="icon-label">${otherCat.key}</div>
