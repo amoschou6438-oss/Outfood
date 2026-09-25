@@ -652,60 +652,6 @@
   .util-link.disabled{
     opacity:.45;
   }
-
-  /* floating draggable menu button */
-  .fab-container{
-    position:fixed;
-    right:20px;
-    bottom:24px;
-    z-index:9999;
-    touch-action:none;
-  }
-  .fab-toggle{
-    width:54px; height:54px;
-    border-radius:50%;
-    background:var(--moss);
-    color:#F2F3E9;
-    border:none;
-    font-size:22px;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 6px 14px rgba(43,58,44,0.35);
-    cursor:grab;
-    user-select:none;
-    -webkit-user-select:none;
-  }
-  .fab-toggle:active{cursor:grabbing;}
-  .fab-menu{
-    position:absolute;
-    right:0;
-    bottom:66px;
-    display:flex;
-    flex-direction:column;
-    align-items:flex-end;
-    gap:10px;
-    opacity:0;
-    transform:translateY(12px) scale(.9);
-    pointer-events:none;
-    transition:opacity .2s ease, transform .2s ease;
-  }
-  .fab-menu.open{
-    opacity:1;
-    transform:translateY(0) scale(1);
-    pointer-events:auto;
-  }
-  .fab-sub-btn{
-    width:46px; height:46px;
-    border-radius:50%;
-    background:var(--card);
-    color:var(--moss-dark);
-    border:1px solid var(--line);
-    font-size:18px;
-    display:flex; align-items:center; justify-content:center;
-    box-shadow:0 4px 10px rgba(43,58,44,0.22);
-    cursor:pointer;
-    white-space:nowrap;
-  }
-  .fab-sub-btn:hover{background:var(--mustard-light); border-color:var(--mustard);}
 </style>
 </head>
 <body>
@@ -723,6 +669,7 @@
   </div>
 
   <div id="homeView" style="display:none;">
+    <button type="button" class="back-btn" id="homeBackBtn">← 返回首頁</button>
     <div class="empty-row" id="areaSelectHint" style="display:none;">請先回到首頁選擇區單位，才會顯示餐點分類</div>
     <div id="categoryRadialBlock" style="display:none;">
       <div class="radial-caption" style="margin-top:0;">請選擇提供的餐點類別</div>
@@ -736,14 +683,17 @@
   </div>
 
   <div id="categoryView" style="display:none;">
+    <button type="button" class="back-btn" id="backBtn">← 返回主頁</button>
     <div id="catDetail"></div>
   </div>
 
   <div id="editView" style="display:none;">
+    <button type="button" class="back-btn" id="editBackBtn">← 返回首頁</button>
     <div id="editDetail"></div>
   </div>
 
   <div id="summaryView" style="display:none;">
+    <button type="button" class="back-btn" id="summaryBackBtn">← 返回主頁</button>
     <div id="summaryDetail"></div>
   </div>
 
@@ -1863,6 +1813,10 @@ function resetResetLink(){
 
 attachResetHandler();
 
+document.getElementById('backBtn').addEventListener('click', showHome);
+document.getElementById('homeBackBtn').addEventListener('click', showLanding);
+document.getElementById('editBackBtn').addEventListener('click', showLanding);
+document.getElementById('summaryBackBtn').addEventListener('click', showHome);
 document.getElementById('excelModalCancel').addEventListener('click', closeExcelShareModal);
 document.getElementById('excelModalConfirm').addEventListener('click', confirmExcelShare);
 
@@ -1876,87 +1830,6 @@ document.getElementById('utilEditBtn').addEventListener('click', ()=>{
 });
 document.getElementById('utilExcelBtn').addEventListener('click', openExcelShareModal);
 
-(function initFab(){
-  const container = document.getElementById('fabContainer');
-  const toggleBtn = document.getElementById('fabToggleBtn');
-  const menu = document.getElementById('fabMenu');
-  const homeBtn = document.getElementById('fabHomeBtn');
-  const topBtn = document.getElementById('fabTopBtn');
-  const bottomBtn = document.getElementById('fabBottomBtn');
-
-  let dragging = false;
-  let moved = false;
-  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
-
-  function clamp(v, min, max){ return Math.min(Math.max(v, min), max); }
-
-  function switchToLeftTop(){
-    const rect = container.getBoundingClientRect();
-    container.style.left = rect.left + 'px';
-    container.style.top = rect.top + 'px';
-    container.style.right = 'auto';
-    container.style.bottom = 'auto';
-  }
-
-  function pointOf(e){ return e.touches && e.touches.length ? e.touches[0] : e; }
-
-  function onPointerDown(e){
-    dragging = true;
-    moved = false;
-    menu.classList.remove('open');
-    switchToLeftTop();
-    const p = pointOf(e);
-    startX = p.clientX;
-    startY = p.clientY;
-    startLeft = parseFloat(container.style.left) || 0;
-    startTop = parseFloat(container.style.top) || 0;
-    document.addEventListener('mousemove', onPointerMove);
-    document.addEventListener('touchmove', onPointerMove, {passive:false});
-    document.addEventListener('mouseup', onPointerUp);
-    document.addEventListener('touchend', onPointerUp);
-  }
-
-  function onPointerMove(e){
-    if(!dragging) return;
-    const p = pointOf(e);
-    const dx = p.clientX - startX;
-    const dy = p.clientY - startY;
-    if(Math.abs(dx) > 5 || Math.abs(dy) > 5) moved = true;
-    if(moved && e.cancelable) e.preventDefault();
-    const maxLeft = window.innerWidth - container.offsetWidth;
-    const maxTop = window.innerHeight - container.offsetHeight;
-    container.style.left = clamp(startLeft + dx, 0, Math.max(maxLeft,0)) + 'px';
-    container.style.top = clamp(startTop + dy, 0, Math.max(maxTop,0)) + 'px';
-  }
-
-  function onPointerUp(){
-    dragging = false;
-    document.removeEventListener('mousemove', onPointerMove);
-    document.removeEventListener('touchmove', onPointerMove);
-    document.removeEventListener('mouseup', onPointerUp);
-    document.removeEventListener('touchend', onPointerUp);
-    if(!moved){
-      menu.classList.toggle('open');
-    }
-  }
-
-  toggleBtn.addEventListener('mousedown', onPointerDown);
-  toggleBtn.addEventListener('touchstart', onPointerDown, {passive:true});
-
-  homeBtn.addEventListener('click', ()=>{
-    menu.classList.remove('open');
-    showLanding();
-  });
-  topBtn.addEventListener('click', ()=>{
-    menu.classList.remove('open');
-    window.scrollTo({top:0, behavior:'smooth'});
-  });
-  bottomBtn.addEventListener('click', ()=>{
-    menu.classList.remove('open');
-    window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
-  });
-})();
-
 (async function init(){
   await loadEntries();
 
@@ -1969,13 +1842,5 @@ document.getElementById('utilExcelBtn').addEventListener('click', openExcelShare
   showLanding();
 })();
 </script>
-<div class="fab-container" id="fabContainer">
-  <div class="fab-menu" id="fabMenu">
-    <button type="button" class="fab-sub-btn" id="fabHomeBtn" title="返回首頁">🏠</button>
-    <button type="button" class="fab-sub-btn" id="fabTopBtn" title="回到頂端">🔝</button>
-    <button type="button" class="fab-sub-btn" id="fabBottomBtn" title="去到底端">🔚</button>
-  </div>
-  <button type="button" class="fab-toggle" id="fabToggleBtn" title="選單">📂</button>
-</div>
 </body>
 </html>
