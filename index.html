@@ -928,7 +928,8 @@ const MAIN_ITEMS = [
   {key:'enter', title:'進入供餐系統', desc:'選擇區單位並登記餐點', emoji:'🍱', color:'#3B5B3E'},
   {key:'summary', title:'查看本區餐點清單', desc:'瀏覽目前已登記的所有項目', emoji:'📋', color:'#2C6E7A'},
   {key:'edit', title:'修改已登記餐點', desc:'編輯或刪除已送出的項目', emoji:'✏️', color:'#C1852B'},
-  {key:'excel', title:'匯出／分享報表', desc:'產生 Excel 報表並分享', emoji:'📊', color:'#1D6F42'}
+  {key:'excel', title:'匯出／分享報表', desc:'產生 Excel 報表並分享', emoji:'📊', color:'#1D6F42'},
+  {key:'download', title:'下載到手機', desc:'直接把 Excel 報表存到手機', emoji:'💾', color:'#5B4B8A'}
 ];
 // 八卦（易經／儒家五經之一）— 依序對應各區的圖示，取代文字
 // 每組為 [初爻(下), 中爻, 上爻]，1=陽爻(實線) 0=陰爻(斷線)
@@ -1256,6 +1257,8 @@ function renderMainList(){
       openEditView();
     }else if(item.key==='excel'){
       openExcelShareModal();
+    }else if(item.key==='download'){
+      downloadExcelToPhone();
     }
   });
 }
@@ -1381,6 +1384,31 @@ function openExcelShareModal(){
   }
   document.getElementById('excelModalArea').textContent = selectedArea;
   document.getElementById('excelShareModal').style.display = 'flex';
+}
+
+function downloadExcelToPhone(){
+  if(!selectedArea){
+    showToast('請先在上方選擇提供餐點的區單位');
+    return;
+  }
+  if(!entries.some(e=>e.area===selectedArea)){
+    showToast('目前還沒有「' + selectedArea + '」提供的餐點資料');
+    return;
+  }
+  if(typeof XLSX === 'undefined'){
+    showToast('Excel 元件載入失敗，請檢查網路連線後再試一次');
+    return;
+  }
+  const wb = buildAreaWorkbook(selectedArea);
+  if(!wb){
+    showToast('下載失敗，請稍後再試一次');
+    return;
+  }
+  const wbout = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const filename = selectedArea + '_餐點統計_' + getTimestamp() + '.xlsx';
+  const blob = new Blob([wbout], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  downloadBlob(blob, filename);
+  showToast('已下載「' + filename + '」，請到手機「檔案／下載」資料夾查看');
 }
 
 function closeExcelShareModal(){
