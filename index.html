@@ -847,6 +847,50 @@
 </div>
 
 <script>
+/* 本機儲存：在手機瀏覽器 / 主畫面 App 開啟時，資料存在 localStorage，關閉後仍會保留 */
+(function(){
+  if(window.storage) return; // Claude 預覽環境已有儲存功能
+  var PREFIX = 'outdoor-meals:';
+  var mem = {};
+  var lsOk = false;
+  try{
+    localStorage.setItem(PREFIX+'__t','1');
+    localStorage.removeItem(PREFIX+'__t');
+    lsOk = true;
+  }catch(e){}
+  window.storage = {
+    get: function(key){
+      var v = null;
+      try{ v = lsOk ? localStorage.getItem(PREFIX+key) : (key in mem ? mem[key] : null); }catch(e){ v = (key in mem ? mem[key] : null); }
+      return Promise.resolve(v === null ? null : {key:key, value:v});
+    },
+    set: function(key, value){
+      mem[key] = value;
+      try{ if(lsOk) localStorage.setItem(PREFIX+key, value); }
+      catch(e){ return Promise.resolve(null); }
+      return Promise.resolve({key:key, value:value});
+    },
+    delete: function(key){
+      delete mem[key];
+      try{ if(lsOk) localStorage.removeItem(PREFIX+key); }catch(e){}
+      return Promise.resolve({key:key, deleted:true});
+    },
+    list: function(prefix){
+      var keys = [];
+      try{
+        for(var i=0;i<localStorage.length;i++){
+          var k = localStorage.key(i);
+          if(k && k.indexOf(PREFIX+(prefix||''))===0) keys.push(k.slice(PREFIX.length));
+        }
+      }catch(e){}
+      return Promise.resolve({keys:keys});
+    }
+  };
+  // 要求瀏覽器「持久保存」，避免空間不足時被系統清掉
+  try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+})();
+</script>
+<script>
 const CATEGORIES = [
   {key:'米飯類', color:'#C1852B'},
   {key:'麵食類', color:'#B36A22'},
