@@ -65,6 +65,13 @@
     font-size:24px; font-weight:700; margin:0 0 4px; line-height:1.4;
   }
   .sub{font-size:13px; color:#C9D3C1; margin:0;}
+  .download-path-note{
+    margin:18px 4px 0; padding:12px 14px; border-radius:12px;
+    background:rgba(91,75,138,0.08); border:1px dashed #5B4B8A;
+    font-size:13px; line-height:1.7; color:var(--ink);
+  }
+  .download-path-note .dpn-title{font-weight:700; color:#5B4B8A; margin-bottom:4px; font-size:14px;}
+  .download-path-note .dpn-row{margin-top:2px;}
   .bottom-warning{
     margin:28px 0 0;
     text-align:center;
@@ -786,6 +793,11 @@
   <div id="mainView">
     <div class="radial-caption" style="margin-top:0; font-size:30px;">主畫面</div>
     <div class="info-bar-list" id="mainBarList"></div>
+    <div class="download-path-note">
+      <div class="dpn-title">💾 「下載到手機」的檔案位置</div>
+      <div class="dpn-row"><b>📱 Android：</b>「檔案」或「檔案管理」App →「下載」資料夾（Download）</div>
+      <div class="dpn-row"><b>🍎 iPhone：</b>「檔案」App →「我的 iPhone」→「下載項目」資料夾（Safari 可點網址列旁的 ⬇ 圖示直接開啟）</div>
+    </div>
   </div>
 
   <div id="landingView" style="display:none;">
