@@ -192,7 +192,10 @@
   .fab-mini-emoji{font-size:14px;}
   .fab-menu.open{pointer-events:auto;}
   .fab-menu.open .fab-mini{opacity:1; transform:translateY(0) scale(1);}
+  .fab-menu.open #fabHomeBtn{transition-delay:0s;}
   .fab-menu.open #fabBackBtn{transition-delay:.02s;}
+  .fab-mini:disabled{opacity:.4 !important; cursor:not-allowed; background:var(--card); border-color:var(--line); box-shadow:none;}
+  .fab-mini:disabled:hover{background:var(--card); border-color:var(--line);}
   .fab-menu.open #fabTopBtn{transition-delay:.06s;}
   .fab-menu.open #fabBottomBtn{transition-delay:.1s;}
   .fab-mini:hover{background:var(--mustard-light); border-color:var(--mustard);}
@@ -841,6 +844,7 @@
     <button type="button" class="fab-mini" id="fabBottomBtn">去到底端<span class="fab-mini-emoji">🔚</span></button>
     <button type="button" class="fab-mini" id="fabTopBtn">回到頂端<span class="fab-mini-emoji">🔝</span></button>
     <button type="button" class="fab-mini" id="fabBackBtn">返回主頁<span class="fab-mini-emoji">🔙</span></button>
+    <button type="button" class="fab-mini" id="fabHomeBtn">回到主畫面<span class="fab-mini-emoji">🏠</span></button>
   </div>
   <button type="button" class="fab-main" id="fabMainBtn" aria-label="展開快捷選單">📂</button>
 </div>
@@ -2180,7 +2184,25 @@ document.getElementById('editBackBtn').addEventListener('click', showLanding);
   var backBtn = document.getElementById('fabBackBtn');
   var topBtn = document.getElementById('fabTopBtn');
   var bottomBtn = document.getElementById('fabBottomBtn');
+  var homeBtn = document.getElementById('fabHomeBtn');
   var isOpen = false;
+
+  function bottomTargetY(){
+    var target = document.querySelector('.footer-note');
+    if(target){
+      var rect = target.getBoundingClientRect();
+      return Math.max(window.scrollY + rect.bottom - window.innerHeight, 0);
+    }
+    return Math.max(document.body.scrollHeight - window.innerHeight, 0);
+  }
+  /* 在頂端 → 「回到頂端」不可按；在底端 → 「去到底端」不可按 */
+  function updateScrollButtons(){
+    var y = window.scrollY || window.pageYOffset || 0;
+    topBtn.disabled = y <= 2;
+    bottomBtn.disabled = y >= bottomTargetY() - 2;
+  }
+  window.addEventListener('scroll', updateScrollButtons, {passive:true});
+  window.addEventListener('resize', updateScrollButtons);
 
   function closeMenu(){
     isOpen = false;
@@ -2191,9 +2213,13 @@ document.getElementById('editBackBtn').addEventListener('click', showLanding);
     isOpen = true;
     menu.classList.add('open');
     mainBtn.textContent = '📁';
+    updateScrollButtons();
   }
 
   window.updateFabVisibility = function(){
+    homeBtn.style.display = (currentView === 'landing') ? 'none' : ''; /* 區選單頁的「返回」本身就是回主畫面 */
+    setTimeout(updateScrollButtons, 0);
+    setTimeout(updateScrollButtons, 300);
     if(currentView === 'main'){
       container.style.display = 'none';
       closeMenu();
@@ -2216,20 +2242,14 @@ document.getElementById('editBackBtn').addEventListener('click', showLanding);
     }
   };
 
+  homeBtn.addEventListener('click', function(){ closeMenu(); showMain(); });
   topBtn.addEventListener('click', function(){
     closeMenu();
     window.scrollTo({top:0, behavior:'smooth'});
   });
   bottomBtn.addEventListener('click', function(){
     closeMenu();
-    var target = document.querySelector('.footer-note');
-    if(target){
-      var rect = target.getBoundingClientRect();
-      var targetY = window.scrollY + rect.bottom - window.innerHeight;
-      window.scrollTo({top:Math.max(targetY, 0), behavior:'smooth'});
-    } else {
-      window.scrollTo({top:document.body.scrollHeight, behavior:'smooth'});
-    }
+    window.scrollTo({top:bottomTargetY(), behavior:'smooth'});
   });
 
   /* 拖曳移動 + 點擊切換選單（以位移量分辨拖曳或點擊） */
