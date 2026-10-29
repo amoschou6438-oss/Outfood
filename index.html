@@ -826,6 +826,11 @@
     <div id="editDetail"></div>
   </div>
 
+  <div id="allAreasView" style="display:none;">
+    <button type="button" class="back-btn" id="allAreasBackBtn">← 返回主頁</button>
+    <div id="allAreasDetail"></div>
+  </div>
+
   <div id="summaryView" style="display:none;">
     <button type="button" class="back-btn" id="summaryBackBtn">← 返回主頁</button>
     <div id="summaryDetail"></div>
@@ -942,9 +947,10 @@ const QTY_PLACEHOLDERS = {
 };
 const VEG_OPTIONS = ['全素','奶素','蛋素','蛋奶素'];
 const NO_VEG_CATS = ['水果類','飲品類'];
-const AREA_OPTIONS = ['台中區','彰化區','太平區','坪林區','嘉義區','斗六區','馬光區','苗栗區'];
+const AREA_OPTIONS = ['台中區','彰化區','太平區','坪林區','嘉義區','斗六區','馬光區','苗栗區','北區'];
 const MAIN_ITEMS = [
   {key:'enter', title:'進入供餐系統', desc:'選擇區單位並登記餐點', emoji:'🍱', color:'#3B5B3E'},
+  {key:'allAreas', title:'查看各區所有餐點', desc:'依分類瀏覽所有區已提供的餐點', emoji:'🌐', color:'#7A5A46'},
   {key:'summary', title:'查看本區餐點清單', desc:'瀏覽目前已登記的所有項目', emoji:'📋', color:'#2C6E7A'},
   {key:'edit', title:'修改已登記餐點', desc:'編輯或刪除已送出的項目', emoji:'✏️', color:'#C1852B'},
   {key:'excel', title:'匯出／分享報表', desc:'產生 Excel 報表並分享', emoji:'📊', color:'#1D6F42'},
@@ -960,9 +966,13 @@ const AREA_TRIGRAMS = [
   [0,1,1], // 巽
   [0,1,0], // 坎
   [0,0,1], // 艮
-  [0,0,0]  // 坤
+  [0,0,0], // 坤
+  'taiji'  // 第九區（北區）：太極圖示
 ];
 function trigramIconSVG(bits){
+  if(bits === 'taiji'){
+    return `<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" fill="none"><circle cx="18" cy="18" r="13" stroke="currentColor" stroke-width="2.4"/><path d="M18 5a13 13 0 0 1 0 26a6.5 6.5 0 0 1 0-13a6.5 6.5 0 0 0 0-13z" fill="currentColor"/><circle cx="18" cy="11.5" r="2" fill="#fff"/><circle cx="18" cy="24.5" r="2" fill="currentColor"/></svg>`;
+  }
   const rows = [bits[2], bits[1], bits[0]]; // top to bottom
   const ys = [9, 18, 27];
   let lines = '';
@@ -985,7 +995,8 @@ const AREA_COLORS = {
   '嘉義區': '#7A5A46',
   '斗六區': '#8B9C4E',
   '馬光區': '#B0577A',
-  '苗栗區': '#5C6B57'
+  '苗栗區': '#5C6B57',
+  '北區': '#4A5F8C'
 };
 const CATEGORY_EMOJI = {
   '米飯類': '🍚',
@@ -1021,6 +1032,39 @@ let storageOk = true;
 let currentView = 'home';
 let selectedArea = '';
 const PREFERRED_AREA_KEY = 'preferred-area-v1';
+
+/* ================================================================
+   各區所有餐點（直接寫入 HTML）
+   把各區回報的餐點，依下列格式一筆一筆加入此陣列即可，畫面會自動依分類顯示。
+   欄位：area=區單位、category=分類（米飯類/麵食類/熟食類/熱湯類/炸物類/點心類/水果類/飲品類）、
+         name=品名、qty=數量、vegType=素食別（全素/奶素/蛋素/蛋奶素；水果、飲品可省略）、
+         provider=提供前賢、note=備註
+   範例：{area:'台中區', category:'米飯類', name:'香菇油飯', qty:'3盤', vegType:'全素', provider:'王大明', note:''},
+   ================================================================ */
+const ALL_AREAS_MEALS = [
+  {area:'台中區', category:'麵食類', name:'包子', qty:'40顆', vegType:'全素', provider:'林靜兒', note:''},
+  {area:'台中區', category:'炸物類', name:'綜合炸物', qty:'2盤', vegType:'蛋奶素', provider:'林靜兒', note:''},
+  {area:'台中區', category:'水果類', name:'橘子', qty:'40顆', vegType:'', provider:'林靜兒', note:''},
+  {area:'台中區', category:'飲品類', name:'飲料', qty:'2桶', vegType:'', provider:'林靜兒', note:''},
+  {area:'太平區', category:'米飯類', name:'油飯', qty:'10斤', vegType:'全素', provider:'邱小清', note:''},
+  {area:'太平區', category:'米飯類', name:'白飯', qty:'1鍋', vegType:'全素', provider:'詹惠雯', note:''},
+  {area:'太平區', category:'麵食類', name:'涼麵', qty:'30份', vegType:'全素', provider:'鄭強', note:''},
+  {area:'太平區', category:'麵食類', name:'涼麵', qty:'5斤', vegType:'全素', provider:'林麗雪', note:''},
+  {area:'太平區', category:'熟食類', name:'滷蛋', qty:'70粒', vegType:'蛋素', provider:'王正海', note:''},
+  {area:'太平區', category:'點心類', name:'麵包', qty:'3條', vegType:'奶素', provider:'林麗雪', note:''},
+  {area:'太平區', category:'點心類', name:'紅茶凍', qty:'50個', vegType:'奶素', provider:'曾月嬌', note:''},
+  {area:'太平區', category:'點心類', name:'布丁', qty:'30個', vegType:'蛋奶素', provider:'林碧純', note:''},
+  {area:'太平區', category:'點心類', name:'蕃薯包', qty:'50粒', vegType:'全素', provider:'林麗玲/黎雪', note:''},
+  {area:'太平區', category:'點心類', name:'三明治', qty:'30份', vegType:'全素', provider:'曾月嬌', note:''},
+  {area:'太平區', category:'點心類', name:'碗粿', qty:'30份', vegType:'全素', provider:'洪勤', note:''},
+  {area:'太平區', category:'水果類', name:'水果', qty:'2盤', vegType:'', provider:'陳益美', note:''},
+  {area:'太平區', category:'飲品類', name:'養樂多', qty:'24瓶', vegType:'', provider:'洪銀國', note:''},
+  {area:'太平區', category:'飲品類', name:'鋁箔飲料', qty:'2箱', vegType:'', provider:'陳宏銘', note:''},
+  {area:'坪林區', category:'米飯類', name:'飯糰', qty:'30粒', vegType:'蛋奶素', provider:'白濬綾', note:''},
+  {area:'坪林區', category:'麵食類', name:'炒麵', qty:'30份', vegType:'全素', provider:'古坤財', note:''},
+  {area:'坪林區', category:'熟食類', name:'茶葉蛋', qty:'30顆', vegType:'蛋素', provider:'古坤財', note:''},
+  {area:'斗六區', category:'麵食類', name:'炒米粉', qty:'2鍋悶燒鍋', vegType:'全素', provider:'高弘書', note:''},
+];
 
 const DEFAULT_SEED = [];
 
@@ -1268,6 +1312,8 @@ function renderMainList(){
   buildInfoBarList(container, items, (item)=>{
     if(item.key==='enter'){
       showLanding();
+    }else if(item.key==='allAreas'){
+      openAllAreasView();
     }else if(item.key==='summary'){
       openSummaryView();
     }else if(item.key==='edit'){
@@ -1524,6 +1570,7 @@ function showMain(){
   document.getElementById('categoryView').style.display = 'none';
   document.getElementById('editView').style.display = 'none';
   document.getElementById('summaryView').style.display = 'none';
+  document.getElementById('allAreasView').style.display = 'none';
   updateMainUtilsState();
   updateFabVisibility();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1537,6 +1584,7 @@ function showLanding(){
   document.getElementById('categoryView').style.display = 'none';
   document.getElementById('editView').style.display = 'none';
   document.getElementById('summaryView').style.display = 'none';
+  document.getElementById('allAreasView').style.display = 'none';
   renderAreaRadialGrid();
   updateFabVisibility();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1550,6 +1598,7 @@ function showHome(){
   document.getElementById('categoryView').style.display = 'none';
   document.getElementById('editView').style.display = 'none';
   document.getElementById('summaryView').style.display = 'none';
+  document.getElementById('allAreasView').style.display = 'none';
   renderCategoryRadial();
   updateIconGridVisibility();
   updateFabVisibility();
@@ -1564,6 +1613,7 @@ function openCategory(key){
   document.getElementById('categoryView').style.display = '';
   document.getElementById('editView').style.display = 'none';
   document.getElementById('summaryView').style.display = 'none';
+  document.getElementById('allAreasView').style.display = 'none';
   renderCategoryDetail(key);
   updateFabVisibility();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1578,6 +1628,7 @@ function openEditView(){
   document.getElementById('categoryView').style.display = 'none';
   document.getElementById('editView').style.display = '';
   document.getElementById('summaryView').style.display = 'none';
+  document.getElementById('allAreasView').style.display = 'none';
   renderEditView();
   updateFabVisibility();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -1595,9 +1646,95 @@ function openSummaryView(){
   document.getElementById('categoryView').style.display = 'none';
   document.getElementById('editView').style.display = 'none';
   document.getElementById('summaryView').style.display = '';
+  document.getElementById('allAreasView').style.display = 'none';
   renderSummaryView();
   updateFabVisibility();
   window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function openAllAreasView(){
+  currentView = 'allAreas';
+  ['mainView','landingView','homeView','categoryView','editView','summaryView'].forEach(id=>{
+    document.getElementById(id).style.display = 'none';
+  });
+  document.getElementById('allAreasView').style.display = '';
+  renderAllAreasView();
+  updateFabVisibility();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderAllAreasView(){
+  const detail = document.getElementById('allAreasDetail');
+  detail.innerHTML = '';
+
+  const headRow = document.createElement('div');
+  headRow.className = 'cat-detail-head';
+  headRow.innerHTML = `
+    <span class="cat-name">各區所有餐點</span>
+    <span class="cat-count">共 ${ALL_AREAS_MEALS.length} 項</span>
+  `;
+  detail.appendChild(headRow);
+
+  if(ALL_AREAS_MEALS.length===0){
+    const empty = document.createElement('div');
+    empty.className = 'empty-row';
+    empty.textContent = '目前尚無各區餐點資料';
+    detail.appendChild(empty);
+    return;
+  }
+
+  CATEGORIES.forEach(cat=>{
+    const catEntries = ALL_AREAS_MEALS.filter(e=>e.category===cat.key);
+    if(catEntries.length===0) return;
+    // 依區單位順序排列
+    catEntries.sort((a,b)=>{
+      const ia = AREA_OPTIONS.indexOf(a.area), ib = AREA_OPTIONS.indexOf(b.area);
+      return (ia<0?99:ia) - (ib<0?99:ib);
+    });
+
+    const group = document.createElement('div');
+    group.className = 'cat static';
+
+    const groupHead = document.createElement('div');
+    groupHead.className = 'cat-head';
+    const bigTitle = document.createElement('div');
+    bigTitle.className = 'allareas-cat-title';
+    bigTitle.style.cssText = `font-size:26px;font-weight:800;letter-spacing:.08em;color:${cat.color};margin:6px 4px 2px;display:flex;align-items:center;gap:8px;`;
+    bigTitle.innerHTML = `<span>${CATEGORY_EMOJI[cat.key] || ''}</span><span>${escapeHtml(cat.key)}</span><span style="font-size:14px;font-weight:600;opacity:.75;letter-spacing:.02em;">共 ${catEntries.length} 項</span>`;
+    groupHead.appendChild(bigTitle);
+    group.appendChild(groupHead);
+
+    const body = document.createElement('div');
+    body.className = 'cat-body';
+    body.style.display = 'block';
+
+    const showVeg = !NO_VEG_CATS.includes(cat.key);
+
+    catEntries.forEach((en, idx)=>{
+      const row = document.createElement('div');
+      row.className = 'entry';
+      const provideLine = en.provider ? en.provider + '提供' : '';
+      const metaLine = [en.qty, provideLine].filter(Boolean).join(' ');
+      const areaColor = AREA_COLORS[en.area] || '#8B9686';
+      row.innerHTML = `
+        <div>
+          <div class="entry-main">
+            <span class="entry-num">${idx+1}.</span>
+            <span class="badge" style="background:${areaColor}; color:#fff;">${escapeHtml(en.area || '')}</span>
+            ${escapeHtml(en.name || '（未填品名）')}
+            ${showVeg && en.vegType ? `<span class="badge">${escapeHtml(en.vegType)}</span>` : ''}
+          </div>
+          <div class="entry-meta">
+            ${escapeHtml(metaLine)}${en.note ? ' · ' + escapeHtml(en.note) : ''}
+          </div>
+        </div>
+      `;
+      body.appendChild(row);
+    });
+
+    group.appendChild(body);
+    detail.appendChild(group);
+  });
 }
 
 function renderSummaryView(){
@@ -2236,6 +2373,10 @@ document.getElementById('editBackBtn').addEventListener('click', showLanding);
       container.style.display = '';
       backBtn.innerHTML = '返回區選單<span class="fab-mini-emoji">📜</span>';
       backBtn.onclick = function(){ closeMenu(); showLanding(); };
+    } else if(currentView === 'allAreas'){
+      container.style.display = '';
+      backBtn.innerHTML = '返回主畫面<span class="fab-mini-emoji">🏠</span>';
+      backBtn.onclick = function(){ closeMenu(); showMain(); };
     } else if(currentView && currentView !== 'edit' && currentView !== 'summary'){
       // any 餐點類別 detail view (categoryView)
       container.style.display = '';
@@ -2311,6 +2452,7 @@ document.getElementById('editBackBtn').addEventListener('click', showLanding);
   document.addEventListener('touchend', pointerUp);
 })();
 document.getElementById('summaryBackBtn').addEventListener('click', showMain);
+document.getElementById('allAreasBackBtn').addEventListener('click', showMain);
 document.getElementById('excelModalCancel').addEventListener('click', closeExcelShareModal);
 document.getElementById('excelModalConfirm').addEventListener('click', confirmExcelShare);
 
